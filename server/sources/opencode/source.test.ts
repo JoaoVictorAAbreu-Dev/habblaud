@@ -28,6 +28,7 @@ describe('OpenCodeSource (v2)', () => {
         id: 'ses_123', title: 'Trabalhando no fork', time: { created: 1000 },
         location: { directory: '/work/habblaud' },
       } });
+      if (String(input).endsWith('/api/session/ses_123/permission')) return json({ data: [] });
       throw new Error('unexpected URL');
     };
     const source = new OpenCodeSource({ url: 'http://127.0.0.1:4767', password: 'secret', accounts, office, fetch: request, pollMs: 60_000 });
@@ -41,6 +42,7 @@ describe('OpenCodeSource (v2)', () => {
     expect(paths).toEqual([
       'http://127.0.0.1:4767/api/session/active',
       'http://127.0.0.1:4767/api/session/ses_123',
+      'http://127.0.0.1:4767/api/session/ses_123/permission',
       'http://127.0.0.1:4767/api/session/active',
     ]);
     source.stop();
@@ -54,5 +56,30 @@ describe('OpenCodeSource (v2)', () => {
     expect(source.sources()).toMatchObject([{ ok: false, sessions: 0, error: 'autenticação recusada' }]);
     expect(JSON.stringify(source.sources())).not.toContain('secret');
     source.stop();
+  });
+
+  it('shows a pending permission as waiting, then returns to work without status churn', async () => {
+    const { accounts, office } = fixture();
+    let pending = true;
+    const source = new OpenCodeSource({ url: 'http://127.0.0.1:4767', password: 'secret', accounts, office,
+      fetch: async (input) => {
+        const path = String(input);
+        if (path.endsWith('/api/session/active')) return json({ data: { ses_123: {} } });
+        if (path.endsWith('/api/session/ses_123')) return json({ data: {
+          id: 'ses_123', time: { created: 1000 }, location: { directory: '/work/habblaud' },
+        } });
+        if (path.endsWith('/api/session/ses_123/permission')) return json({ data: pending ? [{ id: 'per_1' }] : [] });
+        throw new Error('unexpected URL');
+      }, pollMs: 60_000 });
+    await source.start();
+    expect(office.get('.opencode:ses_123')).toMatchObject({ status: 'waiting', waitingFor: 'Permissão pendente no OpenCode' });
+    const statusSince = office.get('.opencode:ses_123')?.statusSince;
+    await source.poll();
+    expect(office.get('.opencode:ses_123')?.statusSince).toBe(statusSince);
+    pending = false;
+    await source.poll();
+    expect(office.get('.opencode:ses_123')?.status).toBe('working');
+    source.stop();
+    expect(office.get('.opencode:ses_123')?.status).toBe('offline');
   });
 });

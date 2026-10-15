@@ -6,6 +6,7 @@ export const FR: Readonly<Record<string, string>> = {
   "Agente principal (OpenCode)": "Agent principal (OpenCode)",
   "Subagente (OpenCode)": "Sous-agent (OpenCode)",
   "falha ao consultar OpenCode": "échec de la consultation d'OpenCode",
+  "Permissão pendente no OpenCode": "Autorisation en attente dans OpenCode",
   "Abra o Claude Code{0}, o Codex ou o OpenCode em qualquer projeto e veja seu agente chegar.": "Ouvrez Claude Code{0}, Codex ou OpenCode dans n'importe quel projet et regardez votre agent arriver.",
   // client/src/main.ts
   "Escritório virtual em pixel art que mostra, em tempo real, o que seus agentes do Claude Code estão fazendo.": "Bureau virtuel en pixel art qui montre, en temps réel, ce que font vos agents Claude Code.",

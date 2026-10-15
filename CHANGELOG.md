@@ -13,8 +13,9 @@ do meio (0.**3**.0).
 ### OpenCode v2 (experimental)
 
 - Sessões em execução no servidor OpenCode v2 local aparecem no escritório com a conta OpenCode e a sala do projeto real.
-  A integração usa a API autenticada, consulta apenas sessões ativas e se desliga quando a conexão cai. Por enquanto,
-  terminal, histórico, mensagens e permissões continuam disponíveis apenas nas integrações que já os suportam.
+  A integração usa a API autenticada, consulta apenas sessões ativas, sinaliza permissões pendentes e se desliga
+  quando a conexão cai. Por enquanto, terminal, histórico, mensagens e respostas a permissões continuam
+  disponíveis apenas nas integrações que já os suportam.
   Agentes OpenCode não são enviados ao Habblaud World até que o protocolo aceite esse provedor.
 
 ### Habblaud World (em desenvolvimento, desligado por padrão)

@@ -234,8 +234,8 @@ Run an OpenCode v2 server on a local port with `OPENCODE_SERVER_PASSWORD` set. S
 `HABBLAUD_OPENCODE_URL=http://127.0.0.1:<port>` and `HABBLAUD_OPENCODE_PASSWORD` set to the **same** password.
 Keep the password in a private environment file rather than a command line. Only loopback HTTP URLs are accepted.
 Connect the OpenCode TUI to that server with `opencode --server http://127.0.0.1:<port> <project-directory>`.
-Habblaud reads the authenticated `/api/session/active` and `/api/session/:id` endpoints every two seconds and
-shows **currently running** sessions in their real project rooms. OpenCode v2 reports idle sessions separately;
+Habblaud reads the authenticated `/api/session/active`, `/api/session/:id` and pending permission endpoints every two seconds. It
+shows **currently running** sessions in their real project rooms and marks sessions awaiting permission. OpenCode v2 reports idle sessions separately;
 this first integration does not show them. Terminal, session history, messages and permission replies are not yet
 available for OpenCode in Habblaud. OpenCode agents are excluded from Habblaud World until its protocol supports
 the `opencode` provider.

@@ -81,6 +81,8 @@ export class OpenCodeSource implements AgentSource {
     this.stopped = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+    for (const id of this.seen) this.close(id);
+    this.seen.clear();
   }
 
   sources(): SourceInfo[] {
@@ -117,6 +119,12 @@ export class OpenCodeSource implements AgentSource {
       const ids = Object.keys(active).filter((id) => /^ses_[\w-]+$/.test(id));
       const values = await Promise.all(ids.map((id) => this.get(`/api/session/${encodeURIComponent(id)}`)));
       const sessions = values.map((value) => session(record(value)?.data)).filter((value): value is Session => !!value);
+      const pending = new Map(await Promise.all(sessions.map(async (s): Promise<[string, boolean]> => {
+        const result = record(await this.get(`/api/session/${encodeURIComponent(s.id)}/permission`));
+        if (!Array.isArray(result?.data)) throw new Error('formato de permissões pendentes inválido');
+        return [s.id, result.data.length > 0];
+      })));
+      if (this.stopped) return;
       const current = new Set(sessions.map((s) => s.id));
       for (const id of this.seen) if (!current.has(id)) this.close(id);
       // Parents first so real child sessions attach to the correct principal.
@@ -127,14 +135,19 @@ export class OpenCodeSource implements AgentSource {
         if (parentKey && this.opts.office.get(parentKey)) {
           this.opts.office.addSub({ id: key, parentId: parentKey, sessionId: s.id,
             role: tr('Subagente (OpenCode)'), background: false, startedAt: s.time.created });
+          this.opts.office.setStatus(key, pending.get(s.id) ? 'waiting' : 'working',
+            pending.get(s.id) ? tr('Permissão pendente no OpenCode') : undefined);
         } else {
           this.opts.office.addMain({ id: key, provider: 'opencode', account: this.account, sessionId: s.id,
-            cwd: s.location.directory, role: tr('Agente principal (OpenCode)'), startedAt: s.time.created, status: 'working' });
+            cwd: s.location.directory, role: tr('Agente principal (OpenCode)'), startedAt: s.time.created,
+            status: pending.get(s.id) ? 'waiting' : 'working',
+            waitingFor: pending.get(s.id) ? tr('Permissão pendente no OpenCode') : undefined });
         }
       }
       this.seen = current;
       this.error = undefined;
     } catch (error) {
+      if (this.stopped) return;
       for (const id of this.seen) this.close(id);
       this.seen.clear();
       this.error = error instanceof Error ? error.message : tr('falha ao consultar OpenCode');

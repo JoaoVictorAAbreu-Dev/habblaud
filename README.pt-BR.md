@@ -232,9 +232,10 @@ Inicie um servidor OpenCode v2 em uma porta local com `OPENCODE_SERVER_PASSWORD`
 `HABBLAUD_OPENCODE_URL=http://127.0.0.1:<porta>` e `HABBLAUD_OPENCODE_PASSWORD` com **a mesma** senha.
 Guarde a senha em um arquivo de ambiente privado, não na linha de comando. Só endereços HTTP de loopback são aceitos.
 Conecte o TUI ao mesmo servidor com `opencode --server http://127.0.0.1:<porta> <pasta-do-projeto>`.
-O Habblaud consulta `/api/session/active` e `/api/session/:id` a cada dois segundos e mostra apenas sessões
-**em execução** na sala do projeto real. Esta primeira integração não mostra sessões ociosas; terminal, histórico,
-mensagens e respostas a permissões ainda não estão disponíveis para o OpenCode. Os agentes OpenCode não são
+O Habblaud consulta `/api/session/active`, `/api/session/:id` e as permissões pendentes a cada dois segundos. Mostra
+apenas sessões **em execução** na sala do projeto real e sinaliza quando aguardam uma permissão. Esta primeira
+integração não mostra sessões ociosas; terminal, histórico, mensagens e respostas a permissões ainda não estão
+disponíveis para o OpenCode. Os agentes OpenCode não são
 enviados ao Habblaud World enquanto o protocolo dele não aceitar esse provedor.
 
 ### Abrir no celular (opcional)
