@@ -44,6 +44,27 @@ function session(value: unknown): Session | undefined {
   };
 }
 
+/** Só sessões cuja cadeia inteira de pais está ativa, na ordem pai → filho. */
+function connectedSessions(sessions: readonly Session[]): Session[] {
+  const byId = new Map(sessions.map((s) => [s.id, s]));
+  const visiting = new Set<string>();
+  const valid = new Map<string, boolean>();
+  const ordered: Session[] = [];
+  const visit = (id: string): boolean => {
+    if (valid.has(id)) return valid.get(id)!;
+    const s = byId.get(id);
+    if (!s || visiting.has(id)) return false;
+    visiting.add(id);
+    const connected = !s.parentID || visit(s.parentID);
+    visiting.delete(id);
+    valid.set(id, connected);
+    if (connected) ordered.push(s);
+    return connected;
+  };
+  for (const s of sessions) visit(s.id);
+  return ordered;
+}
+
 export class OpenCodeSource implements AgentSource {
   readonly provider = 'opencode' as const;
   private readonly account: string;
@@ -119,20 +140,19 @@ export class OpenCodeSource implements AgentSource {
       const ids = Object.keys(active).filter((id) => /^ses_[\w-]+$/.test(id));
       const values = await Promise.all(ids.map((id) => this.get(`/api/session/${encodeURIComponent(id)}`)));
       const sessions = values.map((value) => session(record(value)?.data)).filter((value): value is Session => !!value);
-      const pending = new Map(await Promise.all(sessions.map(async (s): Promise<[string, boolean]> => {
+      const connected = connectedSessions(sessions);
+      const pending = new Map(await Promise.all(connected.map(async (s): Promise<[string, boolean]> => {
         const result = record(await this.get(`/api/session/${encodeURIComponent(s.id)}/permission`));
         if (!Array.isArray(result?.data)) throw new Error('formato de permissões pendentes inválido');
         return [s.id, result.data.length > 0];
       })));
       if (this.stopped) return;
-      const current = new Set(sessions.map((s) => s.id));
+      const current = new Set(connected.map((s) => s.id));
       for (const id of this.seen) if (!current.has(id)) this.close(id);
-      // Parents first so real child sessions attach to the correct principal.
-      sessions.sort((a, b) => Number(!!a.parentID) - Number(!!b.parentID));
-      for (const s of sessions) {
+      for (const s of connected) {
         const key = `${this.account}:${s.id}`;
-        const parentKey = s.parentID && current.has(s.parentID) ? `${this.account}:${s.parentID}` : undefined;
-        if (parentKey && this.opts.office.get(parentKey)) {
+        const parentKey = s.parentID ? `${this.account}:${s.parentID}` : undefined;
+        if (parentKey) {
           this.opts.office.addSub({ id: key, parentId: parentKey, sessionId: s.id,
             role: tr('Subagente (OpenCode)'), background: false, startedAt: s.time.created });
           this.opts.office.setStatus(key, pending.get(s.id) ? 'waiting' : 'working',

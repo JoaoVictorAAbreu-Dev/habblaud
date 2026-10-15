@@ -82,4 +82,30 @@ describe('OpenCodeSource (v2)', () => {
     source.stop();
     expect(office.get('.opencode:ses_123')?.status).toBe('offline');
   });
+
+  it('connects nested subagents even when the API lists grandchildren first, and hides orphans', async () => {
+    const { accounts, office } = fixture();
+    let active = ['ses_c', 'ses_b', 'ses_a'];
+    const parents: Record<string, string | undefined> = { ses_a: undefined, ses_b: 'ses_a', ses_c: 'ses_b' };
+    const source = new OpenCodeSource({ url: 'http://127.0.0.1:4767', password: 'secret', accounts, office,
+      fetch: async (input) => {
+        const path = String(input);
+        if (path.endsWith('/api/session/active')) return json({ data: Object.fromEntries(active.map((id) => [id, {}])) });
+        const id = path.split('/').pop()!;
+        if (path.endsWith('/permission')) return json({ data: [] });
+        return json({ data: { id, parentID: parents[id], time: { created: 1000 }, location: { directory: '/work/habblaud' } } });
+      }, pollMs: 60_000 });
+    await source.start();
+    expect(office.get('.opencode:ses_a')).toMatchObject({ kind: 'main', status: 'working' });
+    expect(office.get('.opencode:ses_b')).toMatchObject({ kind: 'sub', parentId: '.opencode:ses_a' });
+    expect(office.get('.opencode:ses_c')).toMatchObject({ kind: 'sub', parentId: '.opencode:ses_b' });
+    active = ['ses_c'];
+    await source.poll();
+    expect(source.sources()).toMatchObject([{ sessions: 0 }]);
+    expect(office.get('.opencode:ses_c')?.status).toBe('done');
+    active = ['ses_c', 'ses_b', 'ses_a'];
+    await source.poll();
+    expect(office.get('.opencode:ses_c')).toMatchObject({ kind: 'sub', status: 'working', parentId: '.opencode:ses_b' });
+    source.stop();
+  });
 });
